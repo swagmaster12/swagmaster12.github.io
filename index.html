@@ -121,76 +121,127 @@
     <!-- Portfolio Grid Section -->
     <div class = "wow bounceInDown">
         <section id="portfolio">
-            <div class="container">
-                <div class="row">
-                    <div class="col-lg-12 text-center">
-                        <h2>Portfolio</h2>
-                        <hr class="star-primary">
-                    </div>
-                </div>
-                <div class="row">
-                    <div class="col-sm-4 portfolio-item">
-                        <a href="#portfolioModal1" class="portfolio-link" data-toggle="modal">
-                            <div class="caption">
-                                <div class="caption-content">
-                                    <i class="fa fa-search-plus fa-3x"></i>
-                                </div>
-                            </div>
-                            <img src="img/portfolio/cabin.png" class="img-responsive" alt="">
-                        </a>
-                    </div>
-                    <div class="col-sm-4 portfolio-item">
-                        <a href="#portfolioModal2" class="portfolio-link" data-toggle="modal">
-                            <div class="caption">
-                                <div class="caption-content">
-                                    <i class="fa fa-search-plus fa-3x"></i>
-                                </div>
-                            </div>
-                            <img src="img/portfolio/cake.png" class="img-responsive" alt="">
-                        </a>
-                    </div>
-                    <div class="col-sm-4 portfolio-item">
-                        <a href="#portfolioModal3" class="portfolio-link" data-toggle="modal">
-                            <div class="caption">
-                                <div class="caption-content">
-                                    <i class="fa fa-search-plus fa-3x"></i>
-                                </div>
-                            </div>
-                            <img src="img/portfolio/circus.png" class="img-responsive" alt="">
-                        </a>
-                    </div>
-                    <div class="col-sm-4 portfolio-item">
-                        <a href="#portfolioModal4" class="portfolio-link" data-toggle="modal">
-                            <div class="caption">
-                                <div class="caption-content">
-                                    <i class="fa fa-search-plus fa-3x"></i>
-                                </div>
-                            </div>
-                            <img src="img/portfolio/game.png" class="img-responsive" alt="">
-                        </a>
-                    </div>
-                    <div class="col-sm-4 portfolio-item">
-                        <a href="#portfolioModal5" class="portfolio-link" data-toggle="modal">
-                            <div class="caption">
-                                <div class="caption-content">
-                                    <i class="fa fa-search-plus fa-3x"></i>
-                                </div>
-                            </div>
-                            <img src="img/portfolio/safe.png" class="img-responsive" alt="">
-                        </a>
-                    </div>
-                    <div class="col-sm-4 portfolio-item">
-                        <a href="#portfolioModal6" class="portfolio-link" data-toggle="modal">
-                            <div class="caption">
-                                <div class="caption-content">
-                                    <i class="fa fa-search-plus fa-3x"></i>
-                                </div>
-                            </div>
-                            <img src="img/portfolio/submarine.png" class="img-responsive" alt="">
-                        </a>
-                    </div>
-                </div>
-            </div>
+            <p><a href="http://trackingjs.com" target="_parent">Take a picture of yourself and make sure it is good because we will be using it for the facial recognition You can use a exisiting picture of yourself or you can use the camera we provided.</a></p>
+            <video id="video" width="393" height="295" preload autoplay loop muted controls></video>
+            <canvas id="canvas" width="800" height="530"></canvas>
+            <script>
+                (function() {
+                  // BoundingBoxTracker ======================================================
+                  var BoundingBoxTracker = function() {
+                    BoundingBoxTracker.base(this, 'constructor');
+                  };
+                  tracking.inherits(BoundingBoxTracker, tracking.Tracker);
+                  BoundingBoxTracker.prototype.templateDescriptors_ = null;
+                  BoundingBoxTracker.prototype.templateKeypoints_ = null;
+                  BoundingBoxTracker.prototype.fastThreshold = 60;
+                  BoundingBoxTracker.prototype.blur = 3;
+                  BoundingBoxTracker.prototype.setTemplate = function(pixels, width, height) {
+                    var blur = tracking.Image.blur(pixels, width, height, 3);
+                    var grayscale = tracking.Image.grayscale(blur, width, height);
+                    this.templateKeypoints_ = tracking.Fast.findCorners(grayscale, width, height);
+                    this.templateDescriptors_ = tracking.Brief.getDescriptors(grayscale, width, this.templateKeypoints_);
+                  };
+                  BoundingBoxTracker.prototype.track = function(pixels, width, height) {
+                    var blur = tracking.Image.blur(pixels, width, height, this.blur);
+                    var grayscale = tracking.Image.grayscale(blur, width, height);
+                    var keypoints = tracking.Fast.findCorners(grayscale, width, height, this.fastThreshold);
+                    var descriptors = tracking.Brief.getDescriptors(grayscale, width, keypoints);
+                    this.emit('track', {
+                      data: tracking.Brief.reciprocalMatch(this.templateKeypoints_, this.templateDescriptors_, keypoints, descriptors)
+                    });
+                  };
+                  // Track ===================================================================
+                  var boundingBox = document.getElementById('boundingBox');
+                  var boxLeft = 403;
+                  var video = document.getElementById('video');
+                  var canvas = document.getElementById('canvas');
+                  var canvasRect = canvas.getBoundingClientRect();
+                  var context = canvas.getContext('2d');
+                  var templateImageData;
+                  var capturing = false;
+                  var videoHeight = 295;
+                  var videoWidth = 393;
+                  var tracker = new BoundingBoxTracker();
+                  tracker.on('track', function(event) {
+                    stats.end();
+                    if (capturing) {
+                      return;
+                    }
+                    // Sorts best matches by confidence.
+                    event.data.sort(function(a, b) {
+                      return b.confidence - a.confidence;
+                    });
+                    // Re-draws template on canvas.
+                    context.putImageData(templateImageData, boxLeft, 0);
+                    // Plots lines connecting matches.
+                    for (var i = 0; i < Math.min(10, event.data.length); i++) {
+                      var template = event.data[i].keypoint1;
+                      var frame = event.data[i].keypoint2;
+                      context.beginPath();
+                      context.strokeStyle = 'magenta';
+                      context.moveTo(frame[0], frame[1]);
+                      context.lineTo(boxLeft + template[0], template[1]);
+                      context.stroke();
+                    }
+                  });
+                  var trackerTask = tracking.track(video, tracker, { camera: true });
+                  // Waits for the user to accept the camera.
+                  trackerTask.stop();
+                  // Sync video ============================================================
+                  function requestFrame() {
+                    window.requestAnimationFrame(function() {
+                      context.clearRect(0, 0, canvas.width, canvas.height);
+                      if (video.readyState === video.HAVE_ENOUGH_DATA) {
+                        try {
+                          context.drawImage(video, 0, 0, videoWidth, videoHeight);
+                        } catch (err) {}
+                      }
+                      requestFrame();
+                    });
+                  }
+                  requestFrame();
+                  // Bounding box drag =====================================================
+                  var initialPoint;
+                  var left;
+                  var top;
+                  var width;
+                  var height;
+                  canvas.addEventListener('mousedown', function(event) {
+                    initialPoint = [event.pageX, event.pageY];
+                    capturing = true;
+                  });
+                  canvas.addEventListener('mousemove', function(event) {
+                    if (capturing) {
+                      left = Math.min(initialPoint[0], event.pageX);
+                      top = Math.min(initialPoint[1], event.pageY);
+                      width = Math.max(initialPoint[0], event.pageX) - left;
+                      height = Math.max(initialPoint[1], event.pageY) - top;
+                      boundingBox.style.display = 'block';
+                      boundingBox.style.left = left + 'px';
+                      boundingBox.style.top = top + 'px';
+                      boundingBox.style.width = width + 'px';
+                      boundingBox.style.height = height + 'px';
+                    }
+                  });
+                  document.addEventListener('mouseup', function() {
+                    boundingBox.style.display = 'none';
+                    setTackerTemplate(left, top, width, height);
+                    capturing = false;
+                  });
+                  function setTackerTemplate(left, top, width, height) {
+                    templateImageData = context.getImageData(left - canvasRect.left, top - canvasRect.top, width, height);
+                    canvas.width = boxLeft + width;
+                    context.putImageData(templateImageData, boxLeft, 0);
+                    trackerTask.stop();
+                    tracker.setTemplate(templateImageData.data, width, height);
+                    trackerTask.run();
+                  }
+                  // GUI Controllers
+                  var gui = new dat.GUI();
+                  gui.add(tracker, 'fastThreshold', 20, 100).step(5);
+                  gui.add(tracker, 'blur', 1.1, 5.0).step(0.1);
+                }());
+            </script>
         </section>
     </div>
     <!-- About Section -->
