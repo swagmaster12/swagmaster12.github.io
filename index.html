@@ -121,11 +121,17 @@
     <!-- Portfolio Grid Section -->
     <div class = "wow bounceInDown">
         <section id="portfolio">
-            <p><a href="http://trackingjs.com" target="_parent">Take a picture of yourself and make sure it is good because we will be using it for the facial recognition You can use a exisiting picture of yourself or you can use the camera we provided.</a></p>
-            <video id="video" width="393" height="295" preload autoplay loop muted controls></video>
-            <canvas id="canvas" width="800" height="530"></canvas>
-            <script>
-                (function() {
+            <div id="boundingBox"></div>
+                <div class="demo-frame">
+                <div class="demo-container">
+                <video id="video" width="393" height="295" preload autoplay loop muted controls></video>
+                 <canvas id="canvas" width="800" height="530"></canvas>
+              </div>
+            </div>
+        </section>
+    </div>
+    <script>
+        (function() {
                   // BoundingBoxTracker ======================================================
                   var BoundingBoxTracker = function() {
                     BoundingBoxTracker.base(this, 'constructor');
@@ -242,8 +248,6 @@
                   gui.add(tracker, 'blur', 1.1, 5.0).step(0.1);
                 }());
             </script>
-        </section>
-    </div>
     <!-- About Section -->
     <div class ="wow fadeInRight">
         <section class="success" id="about">
